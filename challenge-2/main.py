@@ -74,12 +74,13 @@ def main() -> None:
     print(f"  Tx ID:       {result['transactionId']}")
     print(f"  Bolt URL:    {result['boltUrl']}")
 
-    print(f"\nUploading {path.name} to checklist (dropbox)...")
+    print(f"\nUploading {path.name} to checklist...")
     token = get_token()
-    upload = upload_to_checklist(token, result["transactionId"], path)
-    print(f"  Dropbox:     {upload['dropboxId']}")
+    upload = upload_to_checklist(token, result["transactionId"], path, doc_type)
+    print(f"  Checklist:   {upload['checklistId']}")
+    print(f"  Item:        {upload['checklistItemName']!r} ({upload['checklistItemId']})")
     print(f"  File ID:     {upload['fileId']}")
-    print(f"  ✓ uploaded")
+    print(f"  ✓ uploaded to checklist item")
 
 
 if __name__ == "__main__":

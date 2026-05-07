@@ -27,7 +27,7 @@ appropriate reZen flow.
 |------|------|
 | `extract.py` | Claude API call. Sends the PDF (`document` block) or image (`image` block) plus two tool schemas — `extract_contract` and `extract_listing` — and lets the model pick which to call. `tool_choice: any` forces a structured answer. |
 | `create.py`  | Pure REST client for arrakis. Walks the full builder lifecycle: location → owner → price-date → buyer/seller → commission-payer (multipart) → personal-deal → commission-splits → submit. Returns the real `transactionId`. |
-| `upload.py`  | Calls `arrakis POST /api/v1/transactions/{txId}/dropbox` to ensure a dropbox exists, then `dropbox POST /api/v1/dropboxes/{id}/files` to attach the source document. |
+| `upload.py`  | Reads `checklistId` + `dropboxId` from the submitted transaction, uploads the file to the dropbox, then adds a **file-reference** on a real checklist item via sherlock so the file shows up under that item in bolt's "Checklist" tab. |
 | `main.py`    | Orchestrator: extract → route on docType → create+submit → upload → print summary. |
 | `.claude/skills/validate-doc-fields.md` | Skill: enforce required fields per docType before hitting reZen. |
 | `examples/`  | Where to drop sample contracts/listings to test against. |
@@ -46,8 +46,11 @@ For a buyer-rep contract:
 8. `GET  /transaction-builder/{id}` → read `allParticipants`, find owner participantId
 9. `PUT  /transaction-builder/{id}/commission-info` (100% to owner participantId)
 10. `POST /transaction-builder/{id}/submit` → returns the new transactionId
-11. `POST /transactions/{txId}/dropbox` → returns dropboxId
-12. `POST {dropbox}/api/v1/dropboxes/{id}/files` (multipart, `uploadedBy` must be a UUID)
+11. `GET  /transactions/{txId}` → read `checklistId` and `dropboxId`
+12. `POST {dropbox}/api/v1/dropboxes/{id}/files` (multipart, `uploadedBy` must be a UUID) → returns `fileId`
+13. `GET  {sherlock}/api/v1/checklists/{checklistId}` → list checklist items
+14. Pick item by name keyword (`purchase contract` / `listing agreement`) — fall back to first item.
+15. `POST {sherlock}/api/v1/checklists/checklist-items/{itemId}/file-references` with `{references: [{fileId, filename}]}` — attaches the dropbox file under the matching checklist item.
 
 For a listing agreement: same flow except step 1 uses `?type=LISTING`, step 4
 uses rep=`SELLER` plus listing dates, step 5 only sends `sellers`.
@@ -92,6 +95,15 @@ on submitted transactions, so the upload step will be skipped too.
   splits would need an additional `/co-agent` PUT and per-participant splits.
 - **`uploadedBy`** must be a yenta UUID. We use the default agent's UUID; in
   production you'd use the authenticated user's id.
+- **Checklist item picking**: we keyword-match on the item name. On team2 the
+  seeded checklist items have random gibberish names ("lime strategize
+  connecting"), so the agent falls back to the first item. On real envs with
+  a proper checklist template ("Purchase Contract", "Listing Agreement", …)
+  the keyword match will land the file on the right item.
+- The sherlock service has both V1 (`/documents`) and V2 (`/file-references`)
+  upload paths. V2 is the current one; the agent uses it. If you ever hit a
+  V1-only checklist, switch to `POST /api/v1/checklists/checklist-items/{id}/documents`
+  with the file as multipart.
 
 ## When to use this agent (Claude Code)
 

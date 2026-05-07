@@ -1,28 +1,38 @@
-"""Upload the source document to a transaction's checklist (dropbox) in reZen.
+"""Upload the source document to a transaction's checklist in reZen.
 
-In reZen the per-transaction file storage is the **dropbox** service. Each
-submitted transaction can have a dropbox associated to it (created on demand
-via arrakis), and files go into that dropbox.
+Modern (V2) checklists separate file storage from checklist references:
+
+  1) The file is stored in the transaction's **dropbox** (storage backend).
+  2) A **file-reference** is added on a specific **checklist item** so the file
+     shows up under that item in bolt's "Checklist" tab.
 
 Flow:
-  1) POST {arrakis}/api/v1/transactions/{transactionId}/dropbox
-       -> returns / creates the dropbox for the transaction.
-  2) Look up the dropbox via {dropbox}/api/v1/dropboxes?ownerType=TRANSACTION&ownerId=...
-       to get its dropboxId.
-  3) POST {dropbox}/api/v1/dropboxes/{dropboxId}/files (multipart) with the file.
+  1) GET  {arrakis}/api/v1/transactions/{transactionId}        -> read checklistId, dropboxId
+  2) POST {dropbox}/api/v1/dropboxes/{dropboxId}/files          -> upload file, returns fileId
+  3) GET  {sherlock}/api/v1/checklists/{checklistId}            -> list items
+  4) Pick an item by name keyword (contract / listing) — fall back to first item.
+  5) POST {sherlock}/api/v1/checklists/checklist-items/{itemId}/file-references
+        body: {"references": [{"fileId": ..., "filename": ...}]}
 """
 
 import json
 import os
 import sys
 from pathlib import Path
-from typing import Optional
 
 import requests
 
 ENV = os.environ.get("DRAFT_TX_ENV", "team2")
 ARRAKIS_BASE = f"https://arrakis.{ENV}realbrokerage.com"
 DROPBOX_BASE = f"https://dropbox.{ENV}realbrokerage.com"
+SHERLOCK_BASE = f"https://sherlock.{ENV}realbrokerage.com"
+
+DEFAULT_UPLOADER_ID = os.environ.get(
+    "UPLOADER_ID", "767fbf84-afbf-4346-aad0-5e262259c657"
+)
+
+CONTRACT_KEYWORDS = ("purchase contract", "purchase agreement", "contract")
+LISTING_KEYWORDS = ("listing agreement", "listing")
 
 
 def _content_type_for(path: Path) -> str:
@@ -37,58 +47,43 @@ def _content_type_for(path: Path) -> str:
     }.get(suffix, "application/octet-stream")
 
 
-def ensure_dropbox(token: str, transaction_id: str, email_hint: str = "pwadmin") -> str:
-    """Create-or-fetch the dropbox tied to a transaction and return its id."""
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json",
-    }
-    body = {
-        "name": f"transaction-{transaction_id}",
-        "owner": {"id": transaction_id, "type": "TRANSACTION"},
-        "emailHint": email_hint,
-    }
-    r = requests.post(
-        f"{ARRAKIS_BASE}/api/v1/transactions/{transaction_id}/dropbox",
-        headers=headers,
-        json=body,
-        timeout=20,
-    )
-    if r.status_code < 400:
-        try:
-            data = r.json()
-            for key in ("id", "dropboxId", "newDropboxId"):
-                if key in data and data[key]:
-                    return data[key]
-        except (ValueError, AttributeError):
-            pass
-
-    # Fallback: list dropboxes for this owner.
+def get_transaction(token: str, transaction_id: str) -> dict:
     r = requests.get(
-        f"{DROPBOX_BASE}/api/v1/dropboxes",
-        params={"ownerType": "TRANSACTION", "ownerId": transaction_id},
+        f"{ARRAKIS_BASE}/api/v1/transactions/{transaction_id}",
         headers={"Authorization": f"Bearer {token}"},
         timeout=15,
     )
     r.raise_for_status()
-    data = r.json()
-    items = data if isinstance(data, list) else data.get("results") or data.get("items") or []
+    return r.json()
+
+
+def get_checklist(token: str, checklist_id: str) -> dict:
+    r = requests.get(
+        f"{SHERLOCK_BASE}/api/v1/checklists/{checklist_id}",
+        headers={"Authorization": f"Bearer {token}"},
+        timeout=15,
+    )
+    r.raise_for_status()
+    return r.json()
+
+
+def pick_checklist_item(checklist: dict, doc_type: str) -> dict:
+    items = checklist.get("items") or []
     if not items:
         raise RuntimeError(
-            f"No dropbox found for transaction {transaction_id}. Last create attempt: "
-            f"{r.status_code} {r.text[:200]}"
+            f"Checklist {checklist.get('id')} has no items; cannot upload."
         )
-    return items[0]["id"]
+    keywords = LISTING_KEYWORDS if doc_type == "listing" else CONTRACT_KEYWORDS
+    for item in items:
+        name = (item.get("name") or "").lower()
+        if any(kw in name for kw in keywords):
+            return item
+    return items[0]
 
 
-DEFAULT_UPLOADER_ID = os.environ.get(
-    "UPLOADER_ID", "767fbf84-afbf-4346-aad0-5e262259c657"
-)
-
-
-def upload_file(token: str, dropbox_id: str, path: Path, uploaded_by: str = DEFAULT_UPLOADER_ID) -> dict:
-    if not path.exists():
-        raise SystemExit(f"File not found: {path}")
+def upload_file_to_dropbox(
+    token: str, dropbox_id: str, path: Path, uploaded_by: str = DEFAULT_UPLOADER_ID
+) -> dict:
     files = {
         "file": (path.name, path.read_bytes(), _content_type_for(path)),
         "filename": (None, path.name),
@@ -102,24 +97,70 @@ def upload_file(token: str, dropbox_id: str, path: Path, uploaded_by: str = DEFA
         timeout=60,
     )
     if r.status_code >= 400:
-        raise RuntimeError(f"file upload -> {r.status_code}: {r.text[:1500]}")
+        raise RuntimeError(f"dropbox upload -> {r.status_code}: {r.text[:1500]}")
     return r.json() if r.text else {}
 
 
-def upload_to_checklist(token: str, transaction_id: str, path: Path) -> dict:
-    dropbox_id = ensure_dropbox(token, transaction_id)
-    uploaded = upload_file(token, dropbox_id, path)
+def add_file_reference(
+    token: str, item_id: str, file_id: str, filename: str
+) -> dict:
+    body = {"references": [{"fileId": file_id, "filename": filename}]}
+    r = requests.post(
+        f"{SHERLOCK_BASE}/api/v1/checklists/checklist-items/{item_id}/file-references",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        },
+        json=body,
+        timeout=30,
+    )
+    if r.status_code >= 400:
+        raise RuntimeError(
+            f"sherlock file-references -> {r.status_code}: {r.text[:1500]}"
+        )
+    return r.json() if r.text else {}
+
+
+def upload_to_checklist(
+    token: str, transaction_id: str, path: Path, doc_type: str = "contract"
+) -> dict:
+    if not path.exists():
+        raise SystemExit(f"File not found: {path}")
+
+    tx = get_transaction(token, transaction_id)
+    checklist_id = tx.get("checklistId")
+    dropbox_id = tx.get("dropboxId")
+    if not checklist_id or not dropbox_id:
+        raise RuntimeError(
+            f"Transaction {transaction_id} missing checklistId/dropboxId — was it submitted?"
+        )
+
+    file_response = upload_file_to_dropbox(token, dropbox_id, path)
+    file_id = file_response.get("id") or file_response.get("fileId")
+    if not file_id:
+        raise RuntimeError(f"dropbox upload returned no fileId: {file_response}")
+
+    checklist = get_checklist(token, checklist_id)
+    item = pick_checklist_item(checklist, doc_type)
+    add_file_reference(token, item["id"], file_id, path.name)
+
     return {
+        "checklistId": checklist_id,
         "dropboxId": dropbox_id,
-        "fileId": uploaded.get("id") or uploaded.get("fileId"),
+        "fileId": file_id,
+        "checklistItemId": item["id"],
+        "checklistItemName": item.get("name"),
         "filename": path.name,
     }
 
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:
-        raise SystemExit("Usage: upload.py <transactionId> <path-to-doc>")
+        raise SystemExit(
+            "Usage: upload.py <transactionId> <path-to-doc> [contract|listing]"
+        )
     from create import get_token
 
-    out = upload_to_checklist(get_token(), sys.argv[1], Path(sys.argv[2]))
+    doc_type = sys.argv[3] if len(sys.argv) > 3 else "contract"
+    out = upload_to_checklist(get_token(), sys.argv[1], Path(sys.argv[2]), doc_type)
     print(json.dumps(out, indent=2))
