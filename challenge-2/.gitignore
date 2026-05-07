@@ -8,3 +8,4 @@ examples/*.jpg
 examples/*.jpeg
 examples/*.webp
 !examples/README.md
+!examples/demo.cast

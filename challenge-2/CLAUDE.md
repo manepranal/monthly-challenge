@@ -105,6 +105,14 @@ on submitted transactions, so the upload step will be skipped too.
   V1-only checklist, switch to `POST /api/v1/checklists/checklist-items/{id}/documents`
   with the file as multipart.
 
+## Demo
+
+- **Recorded run** (asciinema): https://asciinema.org/a/DgpZH0ywt8QEfDsz
+- **Live transactions on team2** (open the *Checklist* tab to see the attached PDF):
+  - Contract: https://bolt.team2realbrokerage.com/transactions/5ade45bb-f2f8-488f-8346-9008500fa924
+  - Listing:  https://bolt.team2realbrokerage.com/transactions/1b2d192e-4cae-4612-88c8-d8b8957de8eb
+- **Local replay**: `asciinema play examples/demo.cast`
+
 ## When to use this agent (Claude Code)
 
 When the user hands you a contract or listing-agreement file (PDF or image),
