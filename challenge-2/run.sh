@@ -16,9 +16,10 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
 
-if [ -z "$ANTHROPIC_API_KEY" ]; then
-  echo "ERROR: ANTHROPIC_API_KEY is not set." >&2
-  echo "       export ANTHROPIC_API_KEY=sk-ant-..." >&2
+if [ -z "$ANTHROPIC_API_KEY" ] && ! command -v claude >/dev/null 2>&1; then
+  echo "ERROR: neither ANTHROPIC_API_KEY nor 'claude' CLI is available." >&2
+  echo "       Either: export ANTHROPIC_API_KEY=sk-ant-..." >&2
+  echo "       Or: install Claude Code (https://claude.com/claude-code) and run 'claude login'." >&2
   exit 1
 fi
 

@@ -1,18 +1,28 @@
-"""Extract structured fields from a contract or listing-agreement PDF/image via the Claude API.
+from __future__ import annotations
 
-Demonstrates Claude API **vision / document** input + **tool use**:
-- PDFs go in as a `document` content block.
-- Images (jpg/png) go in as an `image` content block.
-- The model is forced to answer through one of two typed tools so downstream
-  code can rely on the shape instead of writing a free-text JSON parser.
+"""Extract structured fields from a contract or listing-agreement PDF/image.
+
+Two backends, picked at runtime:
+
+1) **Anthropic SDK (preferred)** — direct Claude API call with vision/document
+   blocks and `tool_use` to coerce structured output. Requires a working
+   `ANTHROPIC_API_KEY`.
+
+2) **`claude` CLI fallback** — when the env key is missing/invalid we shell
+   out to Claude Code (`claude -p ... --output-format json`) which uses its
+   own OAuth credentials. The CLI reads the file via its built-in Read tool
+   and returns JSON. Tool-use isn't available through the CLI, so we constrain
+   output via prompt + JSON-mode and parse the result.
+
+The fallback lets the demo run end-to-end even when the SDK key is rotated.
 """
 
 import base64
 import json
+import os
+import subprocess
 import sys
 from pathlib import Path
-
-import anthropic
 
 CLAUDE_MODEL = "claude-sonnet-4-6"
 
@@ -67,15 +77,12 @@ CONTRACT_TOOL = {
         "type": "object",
         "properties": {
             "address": ADDRESS_SCHEMA,
-            "salePrice": {"type": "number", "description": "Sale price in USD."},
-            "contractDate": {"type": "string", "description": "ISO date the contract was signed."},
-            "closingDate": {"type": "string", "description": "ISO expected/agreed closing date."},
+            "salePrice": {"type": "number"},
+            "contractDate": {"type": "string"},
+            "closingDate": {"type": "string"},
             "buyer": PARTY_SCHEMA,
             "seller": PARTY_SCHEMA,
-            "commissionPercent": {
-                "type": "number",
-                "description": "Buyer-side commission percent if stated; otherwise omit.",
-            },
+            "commissionPercent": {"type": "number"},
         },
         "required": ["address", "salePrice", "contractDate", "closingDate", "buyer", "seller"],
     },
@@ -88,15 +95,12 @@ LISTING_TOOL = {
         "type": "object",
         "properties": {
             "address": ADDRESS_SCHEMA,
-            "listPrice": {"type": "number", "description": "List price in USD."},
-            "listingDate": {"type": "string", "description": "ISO date the listing began."},
-            "expirationDate": {"type": "string", "description": "ISO listing expiration date."},
+            "listPrice": {"type": "number"},
+            "listingDate": {"type": "string"},
+            "expirationDate": {"type": "string"},
             "seller": PARTY_SCHEMA,
             "mlsNumber": {"type": "string"},
-            "commissionPercent": {
-                "type": "number",
-                "description": "Listing-side commission percent if stated; otherwise omit.",
-            },
+            "commissionPercent": {"type": "number"},
         },
         "required": ["address", "listPrice", "listingDate", "expirationDate", "seller"],
     },
@@ -126,10 +130,8 @@ def _build_doc_block(path: Path) -> dict:
     }
 
 
-def extract_document(path: Path) -> tuple[str, dict]:
-    """Return (doc_type, fields). doc_type is 'contract' or 'listing'."""
-    if not path.exists():
-        raise SystemExit(f"File not found: {path}")
+def _extract_via_sdk(path: Path) -> tuple[str, dict]:
+    import anthropic
 
     client = anthropic.Anthropic()
     response = client.messages.create(
@@ -164,9 +166,97 @@ def extract_document(path: Path) -> tuple[str, dict]:
         if block.type == "tool_use" and block.name == "extract_listing":
             return "listing", block.input
 
-    raise RuntimeError(
-        f"Claude did not call either extraction tool. Response: {response}"
+    raise RuntimeError(f"Claude did not call either extraction tool. Response: {response}")
+
+
+CLI_PROMPT = """Read the file at {path} and extract real-estate transaction fields.
+
+Decide if it is a CONTRACT (purchase / buyer side) or a LISTING (listing agreement / seller side).
+
+Return ONLY a single JSON object on stdout, with this exact shape — no prose, no markdown fences:
+
+For a contract:
+{{
+  "docType": "contract",
+  "fields": {{
+    "address": {{"street": "...", "city": "...", "state": "<ARRAKIS_ENUM>", "zip": "..."}},
+    "salePrice": <number>,
+    "contractDate": "YYYY-MM-DD",
+    "closingDate": "YYYY-MM-DD",
+    "buyer":  {{"firstName": "...", "lastName": "...", "email": "...", "phone": "..."}},
+    "seller": {{"firstName": "...", "lastName": "...", "email": "...", "phone": "..."}},
+    "commissionPercent": <number>
+  }}
+}}
+
+For a listing:
+{{
+  "docType": "listing",
+  "fields": {{
+    "address": {{"street": "...", "city": "...", "state": "<ARRAKIS_ENUM>", "zip": "..."}},
+    "listPrice": <number>,
+    "listingDate": "YYYY-MM-DD",
+    "expirationDate": "YYYY-MM-DD",
+    "seller": {{"firstName": "...", "lastName": "...", "email": "...", "phone": "..."}},
+    "mlsNumber": "...",
+    "commissionPercent": <number>
+  }}
+}}
+
+Rules:
+- US state must be ALL_CAPS_WITH_UNDERSCORES (e.g. NEW_YORK, NEW_JERSEY).
+- Dates are ISO YYYY-MM-DD.
+- Money values are plain numbers (no $ or commas).
+- Omit any field genuinely missing from the document — do NOT invent.
+- Output the JSON only. No explanations."""
+
+
+def _extract_via_cli(path: Path) -> tuple[str, dict]:
+    """Fallback: invoke Claude Code CLI which uses OAuth (no env API key needed)."""
+    env = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"}
+    cmd = [
+        "claude",
+        "-p",
+        CLI_PROMPT.format(path=str(path)),
+        "--output-format",
+        "json",
+    ]
+    proc = subprocess.run(
+        cmd, capture_output=True, text=True, env=env, timeout=180, check=False
     )
+    if proc.returncode != 0:
+        raise RuntimeError(f"claude CLI failed: {proc.returncode} {proc.stderr[:500]}")
+
+    cli_output = json.loads(proc.stdout)
+    if cli_output.get("is_error"):
+        raise RuntimeError(f"claude CLI error: {cli_output.get('result')}")
+
+    raw = (cli_output.get("result") or "").strip()
+    if raw.startswith("```"):
+        raw = raw.strip("`")
+        if raw.lower().startswith("json"):
+            raw = raw[4:]
+        raw = raw.strip()
+    payload = json.loads(raw)
+    return payload["docType"], payload["fields"]
+
+
+def extract_document(path: Path) -> tuple[str, dict]:
+    """Return (doc_type, fields). Prefer SDK; fall back to CLI on auth failure."""
+    if not path.exists():
+        raise SystemExit(f"File not found: {path}")
+
+    try:
+        return _extract_via_sdk(path)
+    except Exception as e:
+        msg = str(e).lower()
+        if "401" in msg or "auth" in msg or "api key" in msg or "x-api-key" in msg:
+            print(
+                f"  (SDK auth failed — falling back to claude CLI)",
+                file=sys.stderr,
+            )
+            return _extract_via_cli(path)
+        raise
 
 
 if __name__ == "__main__":
