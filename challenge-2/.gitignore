@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+examples/*.pdf
+examples/*.png
+examples/*.jpg
+examples/*.jpeg
+examples/*.webp
+!examples/README.md
