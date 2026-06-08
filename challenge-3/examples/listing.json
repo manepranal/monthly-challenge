@@ -1,0 +1,36 @@
+{
+  "address": {
+    "street": "18 Magnolia Court",
+    "city": "Rye",
+    "state": "New York",
+    "zip": "10580"
+  },
+  "price": 1295000,
+  "propertyType": "Single-Family Home",
+  "beds": 4,
+  "baths": 3,
+  "sqft": 2680,
+  "lotSize": "0.31 ac",
+  "yearBuilt": 2016,
+  "features": [
+    "Chef's kitchen with quartz island",
+    "Vaulted primary suite with spa bath",
+    "Sun-filled open floor plan",
+    "Walk-out deck and level backyard",
+    "Hardwood floors throughout",
+    "Two-car attached garage"
+  ],
+  "openHouse": {
+    "date": "Saturday, June 14",
+    "time": "1:00 - 4:00 PM"
+  },
+  "photo": "examples/hero.jpg",
+  "mlsNumber": "H6300042",
+  "agent": {
+    "name": "Pranal Mane",
+    "phone": "(914) 555-0142",
+    "email": "pranal.mane@therealbrokerage.com",
+    "brokerage": "Real Broker",
+    "license": "NY 10401234567"
+  }
+}

@@ -1,0 +1,6 @@
+hero.jpg
+  Source:  Unsplash (https://unsplash.com/photos/45c003edd2be)
+  License: Unsplash License — free to use for commercial and non-commercial
+           purposes, no permission or attribution required.
+           https://unsplash.com/license
+  Used here only as sample listing imagery for the challenge-3 demo.
