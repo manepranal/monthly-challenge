@@ -1,21 +1,25 @@
 """Load the listing facts that feed the flyer.
 
-Three input modes, auto-detected from the single positional argument:
+Four input modes, auto-detected from the single positional argument:
 
-1) **Listing JSON file** (preferred for the demo) — a path ending in `.json`
-   with the full fact sheet (address, price, beds/baths/sqft, features,
-   open-house, photo, agent). MLS-style detail lives here because it is NOT
-   in arrakis. See `examples/listing.json`.
+1) **MLS id** (the brief's entry point) — an MLS number like `H6300042`. We
+   resolve the full fact sheet through `mls.lookup` — a live RESO Web API feed if
+   `MLS_BASE_URL`+`MLS_API_TOKEN` are set, else local fixtures. This is the
+   "create flyers and videos *from a new MLS id*" path.
 
-2) **arrakis listing id** — a UUID. We `GET /transactions/{id}` and pull the
+2) **Listing JSON file** — a path ending in `.json` with the full fact sheet
+   (address, price, beds/baths/sqft, features, open-house, photo, agent). See
+   `examples/listing.json`.
+
+3) **arrakis listing id** — a UUID. We `GET /transactions/{id}` and pull the
    real address, list price, and listing agent. Beds/baths/sqft/photo are not
    stored in arrakis, so they come from `--beds/--baths/...` flags (or are
    left blank and the copywriter omits them).
 
-3) **nothing / flags only** — build the listing entirely from CLI flags.
+4) **nothing / flags only** — build the listing entirely from CLI flags.
 
 In every mode, CLI flags override whatever the base source provided, so you can
-enrich a real arrakis listing with the MLS detail it doesn't store.
+enrich a real MLS or arrakis listing with any detail it didn't carry.
 """
 
 import json
@@ -26,6 +30,8 @@ from pathlib import Path
 from typing import Optional
 
 import requests
+
+import mls
 
 ENV = os.environ.get("DRAFT_TX_ENV", "team2")
 ARRAKIS_BASE = f"https://arrakis.{ENV}realbrokerage.com"
@@ -242,12 +248,20 @@ def load_listing(argv: list) -> dict:
         listing = _from_json_file(Path(source).expanduser().resolve())
     elif source and UUID_RE.match(source):
         listing = _from_arrakis(source)
+    elif source and mls.looks_like_mls_id(source):
+        try:
+            listing = mls.lookup(source)
+            print(f"  (resolved from {listing.get('_source')})", file=sys.stderr)
+        except mls.MlsNotFound as e:
+            # Stay lenient: let --flags supply the facts instead of hard-failing.
+            listing = _empty_listing()
+            print(f"  ({e} — building from flags only)", file=sys.stderr)
     else:
         listing = _empty_listing()
         if source:
             print(
-                f"  (source {source!r} is neither a .json path nor a listing UUID — "
-                f"building from flags only)",
+                f"  (source {source!r} is neither a .json path, listing UUID, nor "
+                f"MLS id — building from flags only)",
                 file=sys.stderr,
             )
 

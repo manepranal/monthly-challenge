@@ -13,6 +13,7 @@ copy that exposes the agent to a Fair Housing complaint.
 ## What it does
 
 ```
+$ ./run.sh H6300042                                    # from a new MLS id  ← the brief
 $ ./run.sh examples/listing.json
 $ ./run.sh examples/listing.json --photo ~/Desktop/front.jpg
 $ ./run.sh 1b2d192e-4cae-4612-88c8-d8b8957de8eb --beds 4 --baths 3 --sqft 2680 --photo front.jpg
@@ -42,7 +43,8 @@ not generated**, and every frame is deterministic and offline.
 
 | File | Role |
 |------|------|
-| `fetch.py` | Load the listing facts. Three auto-detected modes: a `listing.json` fact sheet, an **arrakis listing id** (`GET /transactions/{id}` for address/price/agent), or pure `--flags`. Flags override whatever the base source returned, so you can enrich a real arrakis listing with the MLS detail it doesn't store. |
+| `fetch.py` | Load the listing facts. Four auto-detected modes: a **new MLS id** (→ `mls.lookup`), a `listing.json` fact sheet, an **arrakis listing id** (`GET /transactions/{id}` for address/price/agent), or pure `--flags`. Flags override whatever the base source returned, so you can enrich a real listing with any detail it didn't carry. |
+| `mls.py` | **MLS-id → listing.** The brief's entry point. A live **RESO Web API** client (env-gated by `MLS_BASE_URL`+`MLS_API_TOKEN`; works with MLS Grid / Bridge / Spark / Trestle) maps the RESO Data Dictionary onto our listing dict. With no credentials it reads RESO-shaped **fixtures** in `mls_fixtures/` through the *same* mapper, so `./run.sh <MLS#>` runs offline — only the transport is mocked, not the mapping. |
 | `copywriter.py` | Claude API `tool_use` (forced via `tool_choice`) → strict JSON copy blocks: headline, subheadline, stat line, description, feature bullets, open-house line, CTA, social caption. The model writes the voice but is forbidden from inventing facts. |
 | `compliance.py` | **Fair-Housing gate.** An independent Claude call whose only job is to flag protected-class / steering language and return a sanitized rewrite. The renderer always uses the sanitized copy. |
 | `flyer.py` | Fill the HTML/CSS flyer template, embed the photo as a data-URI, and screenshot it with headless Chrome (`--screenshot`). System fonts only, so it renders offline. Supports `print` (8.5×11) and `social` (1080×1350) sizes. Exposes `shoot()`, the shared Chrome screenshot helper. |
@@ -54,7 +56,9 @@ not generated**, and every frame is deterministic and offline.
 ## Pipeline
 
 1. `fetch.load_listing(argv)` → a normalized `listing` dict (address, price,
-   beds/baths/sqft, features, openHouse, photo, agent).
+   beds/baths/sqft, features, openHouse, photo, agent). An **MLS id** routes
+   through `mls.lookup` (RESO feed or fixtures); a `.json` / arrakis id / flags
+   take the other modes.
 2. `copywriter.write_copy(listing)` → Claude returns the copy blocks via the
    `write_flyer_copy` tool. Facts come only from the listing; voice is the model's.
 3. `compliance.review(copy)` → Claude returns `{compliant, violations, sanitized}`
@@ -99,16 +103,22 @@ pip3 install -r requirements.txt
 - `FLYER_FORMAT=social ./run.sh ...` renders the 1080×1350 Instagram flyer size.
 - `FLYER_ONLY=1 ./run.sh ...` skips the video.
 - arrakis-id mode defaults to `team2`; override with `DRAFT_TX_ENV=team1`.
+- **Live MLS feed:** `export MLS_BASE_URL=https://api.mlsgrid.com/v2` and
+  `export MLS_API_TOKEN=...` to resolve real MLS ids via the RESO Web API. With
+  these unset, `./run.sh <MLS#>` resolves from `mls_fixtures/` (e.g. `H6300042`,
+  `H6300099`).
 
 ## Demo limitations (called out so the demo is honest)
 
-- **"From a new MLS id" is not wired up — this is the one real gap.** Beds/baths/
-  sqft/photos/description are *not* in arrakis, so there is no MLS-id → listing
-  lookup yet. Today the facts come from the `listing.json` sheet or `--flags`,
-  and the arrakis-id mode only enriches address, list price, and the listing
-  agent (read-only). Closing this needs an MLS/IDX feed (RESO Web API, MLS Grid,
-  Bridge, Spark) or an internal listings service keyed by MLS number that returns
-  photos — a credentialed data source we don't have in this repo.
+- **"From a new MLS id" is wired up via a provider seam, and the demo runs on
+  fixtures.** `mls.py` is a real RESO Web API client (`MLS_BASE_URL`+
+  `MLS_API_TOKEN` → live MLS Grid / Bridge / Spark / Trestle feed), mapping the
+  RESO Data Dictionary onto our listing dict. We don't hold MLS credentials in
+  this repo, so the default path reads RESO-shaped fixtures in `mls_fixtures/`
+  through the *same* mapper — only the network transport is mocked, not the field
+  mapping. To go fully live: set the two env vars and point at a credentialed
+  feed; no code change. (arrakis stays a separate, complementary mode — it only
+  carries address/price/agent, not the MLS detail.)
 - **The video is built from styled stills + ffmpeg motion, not an AI-video
   model.** Deterministic, offline, on-brand — but it's a Ken Burns reel over the
   listing photo and scene cards, not generated cinematography.
@@ -136,9 +146,9 @@ rewrite.
 
 ## When to use this agent (Claude Code)
 
-When an agent hands you a listing (a JSON fact sheet, an arrakis listing id, or
-just the address + price + specs) and wants marketing material, use this project.
-Run `./run.sh <listing>` and report:
+When an agent hands you a listing (a new MLS id, a JSON fact sheet, an arrakis
+listing id, or just the address + price + specs) and wants marketing material,
+use this project. Run `./run.sh <listing>` and report:
 
 1. The headline and stat line Claude wrote.
 2. Whether the copy passed the Fair-Housing review (and what was rewritten).

@@ -4,6 +4,7 @@ out/caption.txt
 out/listing.mp4
 out/scene_*.png
 out/scene_*.html
+out/mls_hero.jpg
 out/.chrome-profile/
 __pycache__/
 *.pyc
