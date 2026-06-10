@@ -73,7 +73,10 @@ def main() -> None:
     print(f"  Flyer:     {out['png']}  ({out['size']})")
     print(f"  HTML:      {out['html']}")
     if vid:
-        print(f"  Video:     {vid['mp4']}  ({vid['size']}, {vid['duration']})")
+        voice = f", voice: {vid['voice']}" if vid.get("voice") else ", silent"
+        print(f"  Video:     {vid['mp4']}  ({vid['size']}, {vid['duration']}{voice})")
+        if not vid.get("voice"):
+            print(f"  Script:    {vid['script']}  ← record this & save as out/voiceover.m4a for your voice")
     print(f"  Caption:   {out['caption']}")
     print(f"\nSocial caption:\n{copy['socialCaption']}\n")
 

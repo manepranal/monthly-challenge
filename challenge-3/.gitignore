@@ -5,6 +5,12 @@ out/listing.mp4
 out/scene_*.png
 out/scene_*.html
 out/mls_hero.jpg
+out/narration_script.txt
+out/read-aloud.txt
+out/voiceover*
+voiceover.*
+out/_*
+out/tts_*
 out/.chrome-profile/
 __pycache__/
 *.pyc

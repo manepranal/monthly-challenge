@@ -48,7 +48,7 @@ not generated**, and every frame is deterministic and offline.
 | `copywriter.py` | Claude API `tool_use` (forced via `tool_choice`) → strict JSON copy blocks: headline, subheadline, stat line, description, feature bullets, open-house line, CTA, social caption. The model writes the voice but is forbidden from inventing facts. |
 | `compliance.py` | **Fair-Housing gate.** An independent Claude call whose only job is to flag protected-class / steering language and return a sanitized rewrite. The renderer always uses the sanitized copy. |
 | `flyer.py` | Fill the HTML/CSS flyer template, embed the photo as a data-URI, and screenshot it with headless Chrome (`--screenshot`). System fonts only, so it renders offline. Supports `print` (8.5×11) and `social` (1080×1350) sizes. Exposes `shoot()`, the shared Chrome screenshot helper. |
-| `video.py` | Render four 1080×1920 scene cards (hero · stats · highlights · CTA) via `shoot()`, then assemble them with ffmpeg — a Ken Burns zoom per scene, crossfades, a silent audio track — into `listing.mp4`. |
+| `video.py` | Render four 1080×1920 scene cards (hero · stats · highlights · CTA) via `shoot()`, then assemble them with ffmpeg — a Ken Burns zoom per scene, crossfades — into `listing.mp4`. **Narration is synced per scene:** it writes one spoken line per scene (worded to match that scene's on-screen content, from the sanitized copy), renders each with a macOS `say` voice (`VOICE`, default Daniel; `VOICE_RATE` wpm), and sets each scene's length to its own line — so the voice always tracks the visuals. `VOICE=off` falls back to the record-your-own path (`VOICEOVER=/path` or `voiceover.<ext>`, paced to your read) or a silent track. |
 | `main.py` | Orchestrator: fetch → copy → compliance → flyer + video → print summary. |
 | `.claude/skills/validate-fair-housing.md` | The Fair-Housing rules the gate enforces. |
 | `examples/listing.json` | A sample Rye, NY listing to run against (with `examples/hero.jpg`). |
@@ -122,6 +122,18 @@ pip3 install -r requirements.txt
 - **The video is built from styled stills + ffmpeg motion, not an AI-video
   model.** Deterministic, offline, on-brand — but it's a Ken Burns reel over the
   listing photo and scene cards, not generated cinematography.
+- **Voiceover is a synced macOS `say` voice, not an AI clone or cloud TTS.** By
+  default the reel is narrated by a built-in system voice (`VOICE`, default
+  Daniel) — one line per scene, each worded to match what's on screen, with the
+  scene paced to its line so the voice tracks the visuals. It's fully offline and
+  deterministic, but it's a stock TTS voice, not a clone of anyone. To use *your
+  own* voice instead, set `VOICE=off` and drop a recording in (`VOICEOVER=/path`
+  or `voiceover.<ext>`); the reel then paces to your read. **macOS Personal Voice
+  (cloning your own voice) was evaluated and does not work here:** the OS denies
+  Personal Voice authorization to any tool not signed with an Apple Developer
+  Team ID (a bare CLI and an ad-hoc-signed app both return `denied`), and this
+  machine has no signing identity — so a recording is the only "your actual
+  voice" path.
 - **The photo** is the agent's own listing photo, passed via `--photo` (or
   `"photo"` in the JSON). With no photo, the hero falls back to a tasteful
   gradient placeholder so the flyer is still complete.
