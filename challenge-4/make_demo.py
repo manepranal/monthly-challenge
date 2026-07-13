@@ -217,8 +217,52 @@ def s_outro() -> str:
     </div>""")
 
 
+def s_built() -> str:
+    rows = [
+        ("fetch.py", "load the inbox — emails + PDF attachments", ""),
+        ("classify.py", "files each document by its content", "Claude"),
+        ("dates.py", "extracts every contract deadline", "Claude"),
+        ("organize.py", "builds folders + calendar + follow-ups", ""),
+        (".claude/skills/", "the filing + reminder rules", "Skills"),
+    ]
+    cards = "".join(
+        f"<div class='card'><span class='fname accent' style='min-width:300px'>{f}</span>"
+        f"<span class='dim' style='font-size:29px'>{r}</span>"
+        + (f"<span class='tag' style='margin-left:auto'>{t}</span>" if t else "")
+        + "</div>"
+        for f, r, t in rows
+    )
+    return page(f"""
+    <div class='stage'>
+      <div class='kicker'>A handful of small Python files</div>
+      <h2>How it's built.</h2>
+      <div class='grid'>{cards}</div>
+    </div>""")
+
+
+def s_toolcalls() -> str:
+    t1 = ("<span class='c2'>organize_inbox</span>(inbox)  &rarr;  {\n"
+          "    filings[]       <span class='dim'>file each attachment by content</span>\n"
+          "    action_items[]  <span class='dim'>surface the follow-ups</span>\n"
+          "}")
+    t2 = ("<span class='c2'>extract_milestones</span>(contract)  &rarr;  {\n"
+          "    milestones[]    <span class='dim'>every deadline as an ISO date + reminder</span>\n"
+          "}")
+    return page(f"""
+    <div class='stage'>
+      <div class='kicker'>Two forced tool-calls do the thinking</div>
+      <h2>Claude returns typed plans.</h2>
+      <div class='grid' style='gap:24px'>
+        <div class='term' style='margin-top:6px'>{t1}</div>
+        <div class='term' style='margin-top:0'>{t2}</div>
+      </div>
+    </div>""")
+
+
 SCENES = [
     ("title", s_title, "This is the Deal Organizer — July's answer to helping real-estate agents get organized."),
+    ("built", s_built, "Under the hood it's just a few small Python files — one loads the inbox, two call Claude, and one files everything and builds the calendar."),
+    ("toolcalls", s_toolcalls, "The thinking is two Claude tool-calls: one files each document by its content, the other reads the contract and pulls out every deadline."),
     ("problem", s_problem, "A single deal buries an agent in email: the contract, the inspection report, the appraisal, the commission statement, disclosures — and seven deadlines hidden in the fine print."),
     ("terminal", s_terminal, "Point Claude at the inbox. In one run it reads every message and every attachment, then organizes the whole deal."),
     ("filed", s_filed, "Every document is filed by what's inside it — the contract, the inspection, the appraisal, the commission statement, and the disclosures each land in the right folder."),
