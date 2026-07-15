@@ -5,12 +5,20 @@
 # Take a deal's inbox (emails + attachments), and let Claude file every
 # document into the right folder and build a calendar of every deadline.
 #
-# Usage:
+# One-shot mode (organize a pile):
 #   ./run.sh                       # runs on the sample deal in examples/
 #   ./run.sh examples              # same, explicit
 #   ./run.sh /path/to/deal-inbox   # any folder with inbox.json + attachments/
 #
-#   DEAL_MODEL=claude-opus-4-8 ./run.sh    # override the model
+# Watch mode (organize a stream — Otto-style pipeline; see CLAUDE.md):
+#   ./run.sh watch                 # terminal 1: the organizer sweep loop
+#   ./run.sh drip                  # terminal 2: sample emails arrive 1-by-1
+#   ./run.sh status                # print the board
+#   ./run.sh approve <email-id>    # clear a NEEDS REVIEW gate
+#   ./run.sh resume  <email-id>    # un-park a budget-exhausted email
+#
+#   DEAL_MODEL=claude-opus-4-8 ./run.sh        # override the model
+#   OTTO_SWEEP_SEC=5 OTTO_MAX_RUNS_PER_STATE=3 # watch-mode tunables
 # =========================================================================
 
 set -e
@@ -30,4 +38,15 @@ if ! python3 -c "import anthropic, pypdf" 2>/dev/null; then
   pip3 install -r requirements.txt
 fi
 
-python3 main.py "$@"
+case "${1:-}" in
+  watch|tick|status|approve|resume)
+    python3 pipeline.py "$@"
+    ;;
+  drip)
+    shift
+    python3 drip.py "$@"
+    ;;
+  *)
+    python3 main.py "$@"
+    ;;
+esac

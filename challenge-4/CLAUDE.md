@@ -14,10 +14,17 @@ demoable in a single run.
 
 ## What it does
 
+Two modes over the same AI jobs:
+
 ```
+# One-shot — organize a PILE (the original demo)
 $ ./run.sh                       # the sample deal in examples/ (123 Maple Ave)
 $ ./run.sh examples              # same, explicit
 $ ./run.sh /path/to/deal-inbox   # any folder with inbox.json + attachments/
+
+# Watch — organize a STREAM (Otto-style pipeline; see "Watch mode" below)
+$ ./run.sh watch                 # terminal 1: the organizer, sweeping every 5s
+$ ./run.sh drip                  # terminal 2: sample emails arrive one by one
 ```
 
 Given a deal's inbox (6 emails, 5 attachments), it produces under `./out/<deal>/`:
@@ -65,6 +72,56 @@ Given a deal's inbox (6 emails, 5 attachments), it produces under `./out/<deal>/
 | **Agents** | This project — `CLAUDE.md` defines a Claude Code agent you can `cd` into and run. It reads an inbox and *acts* (files, schedules, flags), but stops short of sending anything. |
 | **Orchestration** | `main.py` chains two independent Claude calls (file, then schedule) plus a deterministic executor — the shape of a real assistant. |
 | **Memory** | The agent's persona (a Real Brokerage buyer's agent) and the Google-account safety rules for the live demo come from user memory, not re-discovery. |
+
+## Watch mode — the Otto-style pipeline
+
+The one-shot run organizes a pile; real chaos is a *stream*. Watch mode borrows
+its architecture from **Realtyka/otto** (Real's ticket-to-production pipeline):
+every email is a work item that walks itself across a board, a sweep loop
+retries anything stalled, and safety rails park anything stuck.
+
+```
+NEW ──file──▶ FILED ──schedule──▶ SCHEDULED ──publish──▶ DONE
+ │                                                (regenerates calendar.ics,
+ └──▶ NEEDS REVIEW (👀 human gate:                 FOLLOW_UPS.md, SUMMARY.md
+      low-confidence filing — `approve`)           from the ledger)
+
+ any state ──▶ 🚫 parked (run budget exhausted — `resume`)
+```
+
+| Otto (cloud) | Watch mode (local) |
+|---|---|
+| YouTrack ticket State = source of truth | `out/<deal>/ledger.json` per-email state |
+| 🤖 Otto Board | `BOARD.md`, re-rendered every tick |
+| onChange dispatch + 15-min onSchedule sweep | intake scan + sweep loop (`OTTO_SWEEP_SEC`, default 5s) |
+| `otto-in-progress` tag | `.otto-in-progress` lock file per deal |
+| run-budget gate → `otto-blocked` park + Slack alert | per-(email, state) dispatch counter, cap `OTTO_MAX_RUNS_PER_STATE` (3) → parked + `ALERTS.md` |
+| Slack channel (`post.sh`) | `ALERTS.md` + console narration |
+| `Requires UI QA = No` scope gate | confidence gate: filing < `OTTO_CONFIDENCE_GATE` (0.6) → `NEEDS REVIEW`, waits for a human `approve` |
+| otto-1…4 skills, "checks once, never waits" | `file → schedule → publish` steps; one step per email per tick, the sweep is the loop |
+
+Design rules carried over from Otto: steps are **idempotent** (publish
+regenerates every artifact from the ledger, so a retry converges instead of
+duplicating); the budget counts **at dispatch time**, so even a crashing step
+stays bounded; state changes **reset** the budget; and a park is never silent —
+it always lands in `ALERTS.md` with the exact resume command. One deliberate
+improvement on Otto: the agent doesn't get to rubber-stamp its own human gate —
+a filing below the confidence threshold stops and waits, it is never auto-filed.
+
+```
+$ ./run.sh watch                       # terminal 1 — the organizer
+$ ./run.sh drip                        # terminal 2 — emails arrive every 20s
+$ ./run.sh status                      # print the board
+$ ./run.sh approve m3                  # clear a NEEDS REVIEW gate (files plan as-is)
+$ ./run.sh resume m3                   # un-park with a fresh budget
+```
+
+Reset a demo with `rm -rf live-inbox out/<deal-slug>`. Watch-mode files:
+`pipeline.py` (harness: intake, lock, budget gate, tick, sweep),
+`steps.py` (the three steps), `ledger.py` (state store + board + alerts),
+`drip.py` (demo feeder). `live-inbox/` is the simulated Gmail; in the live
+variant the intake scan becomes a Gmail MCP search, and everything downstream
+is unchanged.
 
 ## Live Google mode (Gmail + Drive + Calendar via MCP)
 
