@@ -8,14 +8,23 @@ under load, so we retry a few times and parse defensively.
 import json
 import os
 import subprocess
+import time
 
 
 def run_cli_json(prompt: str, attempts: int = 3, timeout: int = 180) -> dict:
     """Run `claude -p <prompt> --output-format json` and return the model's parsed
-    JSON result. Retries on empty or non-JSON output. Raises after `attempts`."""
+    JSON result. Retries on empty or non-JSON output. Raises after `attempts`.
+
+    Retries back off (20s, 40s) rather than firing immediately: the CLI's
+    failures come in rate-limit windows, and three instant retries all land
+    inside the same window — observed in watch mode, where that pattern burned
+    a whole run budget per outage. Spacing the attempts lets one step survive
+    a transient window instead of escalating to a park."""
     env = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"}
     last = "no attempt ran"
-    for _ in range(attempts):
+    for attempt in range(attempts):
+        if attempt:
+            time.sleep(20 * attempt)
         proc = subprocess.run(
             ["claude", "-p", prompt, "--output-format", "json"],
             capture_output=True, text=True, env=env, timeout=timeout, check=False,
