@@ -1,0 +1,121 @@
+{
+  "deal": {
+    "id": "RY-2026-0123",
+    "property": "123 Maple Avenue, Rye, NY 10580",
+    "buyers": "Jordan & Priya Shah",
+    "sellers": "Michael & Susan Bennett",
+    "agent": "Alex Rivera — Buyer's Agent, The Real Brokerage",
+    "price": 985000,
+    "escrow_number": "ESC-88213"
+  },
+  "emails": [
+    {
+      "id": "m1",
+      "from": "Dana Cole <dana@harborviewrealty.com>",
+      "to": "alex.rivera@therealbrokerage.com",
+      "date": "2026-07-08T16:42:00",
+      "subject": "Fully executed contract — 123 Maple Ave, Rye",
+      "body": "Hi Alex,\n\nCongratulations — attached is the fully executed Purchase and Sale Agreement for 123 Maple Avenue, signed by both parties this afternoon. Purchase price $985,000.\n\nJust so we're on the same page for the timeline: attorney review wraps up 7/11, the inspection contingency runs through 7/18, mortgage commitment is due 8/7, and we're targeting closing on 9/5. All of that is spelled out in the contract.\n\nLet me know if your buyers have any questions.\n\nBest,\nDana Cole\nHarborview Realty",
+      "attachments": ["Purchase_Agreement_123_Maple_Ave.pdf"]
+    },
+    {
+      "id": "n1",
+      "from": "Westchester MLS Digest <newsletter@wchmls-digest.com>",
+      "to": "alex.rivera@therealbrokerage.com",
+      "date": "2026-07-09T08:00:00",
+      "subject": "🔥 HOT this week: 14 new listings in Rye + open houses Sunday!",
+      "body": "Alex, don't miss out! 14 NEW listings hit the market in Rye this week. Open houses this Sunday July 12 — doors open 1-4 PM. Inventory is moving FAST — homes in this zip are going in under 9 days on average!\n\nBrowse all listings → wchmls-digest.com/hot\n\nYou are receiving this because you subscribed to Westchester MLS Digest. Unsubscribe anytime.",
+      "attachments": []
+    },
+    {
+      "id": "m5",
+      "from": "Robert Feldman, Esq. <rfeldman@feldmanlaw.com>",
+      "to": "alex.rivera@therealbrokerage.com",
+      "date": "2026-07-09T17:20:00",
+      "subject": "Seller disclosures — 123 Maple Ave",
+      "body": "Counsel for the sellers here. Attached please find the Seller's Property Condition Disclosure and the Lead-Based Paint Disclosure for 123 Maple Avenue. Kindly have your buyers acknowledge receipt.\n\nRegards,\nRobert Feldman, Esq.",
+      "attachments": ["Sellers_Disclosure_123_Maple.pdf"]
+    },
+    {
+      "id": "n2",
+      "from": "RateLock Home Loans <offers@ratelock-promo.com>",
+      "to": "alex.rivera@therealbrokerage.com",
+      "date": "2026-07-10T09:30:00",
+      "subject": "⏰ LAST CHANCE: lock 5.19% for your buyers — offer ends July 15!",
+      "body": "Agent partners —\n\nRates are moving. Lock your buyers in at 5.19% APR before this promotional window CLOSES on July 15, 2026. After that, rates reset and your clients could pay thousands more over the life of the loan.\n\nRefer a buyer today and earn partner points!\n\nRateLock Home Loans — Equal Housing Lender. This is a marketing message; unsubscribe at ratelock-promo.com/opt-out.",
+      "attachments": []
+    },
+    {
+      "id": "n3",
+      "from": "Marcus Webb <marcus.webb.buyer@gmail.com>",
+      "to": "alex.rivera@therealbrokerage.com",
+      "date": "2026-07-13T11:05:00",
+      "subject": "Can we see 45 Oak Street this week?",
+      "body": "Hi Alex,\n\nSarah and I drove past 45 Oak Street in Port Chester yesterday and we'd love to get inside before it goes. Any chance you could set up a showing Thursday or Friday evening? We're flexible after 5:30.\n\nAlso — did the listing agent ever get back to you about whether the basement is included in the square footage?\n\nThanks!\nMarcus",
+      "attachments": []
+    },
+    {
+      "id": "m6",
+      "from": "Priya Shah <priya.shah.nyc@gmail.com>",
+      "to": "alex.rivera@therealbrokerage.com",
+      "date": "2026-07-14T20:03:00",
+      "subject": "Quick questions before Saturday",
+      "body": "Hi Alex! Two quick things — is the inspection still on for this Saturday? And when should we start booking movers given the closing date? Trying to line things up with work. Thanks so much!\n\nPriya",
+      "attachments": []
+    },
+    {
+      "id": "m2",
+      "from": "ProHome Inspections <reports@prohomeinspect.com>",
+      "to": "alex.rivera@therealbrokerage.com",
+      "date": "2026-07-15T09:12:00",
+      "subject": "Inspection report ready — 123 Maple Ave",
+      "body": "Alex,\n\nThe full home inspection report for 123 Maple Avenue is attached. Overall the home is in good condition. Two items to flag for your buyers: the water heater is near end-of-life (11 years) and there is minor moisture staining in the basement that we'd recommend monitoring.\n\nPlease share with your clients before the inspection contingency deadline.\n\nThanks,\nProHome Inspections",
+      "attachments": ["Inspection_Report_123_Maple.pdf"]
+    },
+    {
+      "id": "n4",
+      "from": "Real Brokerage Compliance <compliance@therealbrokerage.com>",
+      "to": "alex.rivera@therealbrokerage.com",
+      "date": "2026-07-16T10:00:00",
+      "subject": "Reminder: Q3 compliance training",
+      "body": "Hi Alex,\n\nFriendly reminder that your Q3 fair-housing compliance module is still showing incomplete in the learning portal. Please finish it by August 1 to stay in good standing.\n\nTakes about 25 minutes.\n\n— Real Brokerage Compliance Team",
+      "attachments": []
+    },
+    {
+      "id": "n5",
+      "from": "Leads Machine Pro <success@leadsmachinepro.io>",
+      "to": "alex.rivera@therealbrokerage.com",
+      "date": "2026-07-17T13:45:00",
+      "subject": "Alex, 10X your GCI with AI-powered seller leads (free webinar)",
+      "body": "What if you never cold-called again?\n\nJoin 12,000+ top producers using Leads Machine Pro to book 15-20 seller appointments a month on autopilot. Our next LIVE masterclass is Tuesday — seats are limited!\n\nClaim your spot → leadsmachinepro.io/webinar\n\nP.S. Early registrants get our $497 'Listing Scripts Vault' FREE.",
+      "attachments": []
+    },
+    {
+      "id": "m3",
+      "from": "Meridian Home Loans <appraisals@meridianhl.com>",
+      "to": "alex.rivera@therealbrokerage.com",
+      "date": "2026-07-22T14:05:00",
+      "subject": "Appraisal completed — 123 Maple Ave",
+      "body": "Hello Alex,\n\nGood news — the appraisal for 123 Maple Avenue came in at $990,000, above the contract price, so we're clear on value. The report is attached for your file.\n\nReminder that the appraisal contingency date is 7/25 and we still need the signed disclosures back to keep mortgage commitment on track for 8/7.\n\nRegards,\nMeridian Home Loans",
+      "attachments": ["Appraisal_Report_123_Maple.pdf"]
+    },
+    {
+      "id": "n6",
+      "from": "Elena Rodriguez <elena.rodz@gmail.com>",
+      "to": "alex.rivera@therealbrokerage.com",
+      "date": "2026-07-23T15:00:00",
+      "subject": "Thank you!!",
+      "body": "Alex,\n\nWe're all moved in at Birchwood Lane and the kids LOVE the backyard. Thank you again for everything — you made a stressful year feel easy. The bottle of wine was such a sweet touch.\n\nIf any of our friends ever need an agent, you're the first call.\n\nWarmly,\nElena & Tom",
+      "attachments": []
+    },
+    {
+      "id": "m4",
+      "from": "Real Brokerage Commissions <commissions@therealbrokerage.com>",
+      "to": "alex.rivera@therealbrokerage.com",
+      "date": "2026-09-02T11:30:00",
+      "subject": "Commission Disbursement Authorization — ESC-88213 / 123 Maple Ave",
+      "body": "Hi Alex,\n\nAttached is the Commission Disbursement Authorization (CDA) for 123 Maple Avenue, escrow ESC-88213, ahead of the 9/5 closing. Please review the split and forward to the title company.\n\nThank you,\nReal Brokerage Commissions Team",
+      "attachments": ["Commission_Statement_123_Maple.pdf"]
+    }
+  ]
+}
