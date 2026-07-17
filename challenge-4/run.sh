@@ -17,6 +17,10 @@
 #   ./run.sh approve <email-id>    # clear a NEEDS REVIEW gate
 #   ./run.sh resume  <email-id>    # un-park a budget-exhausted email
 #
+# Real inbox (Gmail/IMAP — read-only; see fetch_gmail.py for setup):
+#   GMAIL_USER=you@gmail.com GMAIL_APP_PASSWORD=... \
+#   ./run.sh gmail [search terms]  # pull real mail + attachments, organize it
+#
 #   DEAL_MODEL=claude-opus-4-8 ./run.sh        # override the model
 #   OTTO_SWEEP_SEC=5 OTTO_MAX_RUNS_PER_STATE=3 # watch-mode tunables
 # =========================================================================
@@ -45,6 +49,11 @@ case "${1:-}" in
   drip)
     shift
     python3 drip.py "$@"
+    ;;
+  gmail)
+    shift
+    DEST="$(python3 fetch_gmail.py "$@")"   # progress goes to stderr
+    python3 main.py "$DEST"
     ;;
   *)
     python3 main.py "$@"

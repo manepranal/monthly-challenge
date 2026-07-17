@@ -25,6 +25,9 @@ $ ./run.sh /path/to/deal-inbox   # any folder with inbox.json + attachments/
 # Watch — organize a STREAM (Otto-style pipeline; see "Watch mode" below)
 $ ./run.sh watch                 # terminal 1: the organizer, sweeping every 5s
 $ ./run.sh drip                  # terminal 2: sample emails arrive one by one
+
+# Real inbox — organize YOUR actual Gmail (read-only; see "Real inbox mode")
+$ GMAIL_USER=you@gmail.com GMAIL_APP_PASSWORD=... ./run.sh gmail [search terms]
 ```
 
 Given a deal's inbox (6 emails, 5 attachments), it produces under `./out/<deal>/`:
@@ -44,6 +47,7 @@ Given a deal's inbox (6 emails, 5 attachments), it produces under `./out/<deal>/
 | File | Role |
 |------|------|
 | `fetch.py` | Load the inbox. Reads `inbox.json` + the real attachment files, extracting each PDF's text (pypdf, with a `.txt` fallback so extraction never breaks the demo). This is the offline stand-in for a live Gmail pull. |
+| `fetch_gmail.py` | **The live Gmail pull.** Logs into a real mailbox over IMAP (read-only), downloads recent messages *and attachment binaries*, and materializes them into the same `inbox.json + attachments/` shape under gitignored `live-inbox-gmail/` — so everything downstream runs unchanged. `selftest` mode proves the plumbing on synthetic MIME with no credentials. |
 | `classify.py` | **AI job #1 — file it.** One forced `tool_use` call (`organize_inbox`) reads the whole inbox and returns, per attachment, a `category` + a `destination` folder chosen from a fixed **enum**, plus `action_items` for anything a message asks the agent to do. Routing is by content, not filename. |
 | `dates.py` | **AI job #2 — calendar it.** One forced `tool_use` call (`extract_milestones`) reads the executed contract and returns every deadline as `{name, ISO date, category, source, reminder_days_before}`. Conservative: never invents a date; the contract wins ties. |
 | `organize.py` | The executor. Builds the folder tree, copies each attachment into its destination, writes a valid `calendar.ics` (with `VALARM` reminders), `FOLLOW_UPS.md`, and `SUMMARY.md`. Writes **only under `./out`** — nothing else is touched. |
@@ -123,6 +127,37 @@ Reset a demo with `rm -rf live-inbox out/<deal-slug>`. Watch-mode files:
 variant the intake scan becomes a Gmail MCP search, and everything downstream
 is unchanged.
 
+## Real inbox mode (Gmail / any IMAP — implemented)
+
+The fixtures demo and the real thing meet at one contract: a folder with
+`inbox.json + attachments/`. `fetch_gmail.py` fills that contract from a real
+mailbox:
+
+```
+export GMAIL_USER=you@gmail.com
+export GMAIL_APP_PASSWORD=xxxx             # Google Account -> Security ->
+                                           # 2-Step Verification -> App passwords
+./run.sh gmail                             # organize the last 14 days of inbox
+./run.sh gmail 123 Maple                   # only mail matching a Gmail search
+DEAL_PROPERTY="123 Maple Ave, Rye, NY" ./run.sh gmail 123 Maple
+```
+
+- **Read-only by construction** — the IMAP folder is opened with
+  `readonly=True`: nothing is marked read, moved, or deleted. Credentials come
+  from env vars only; fetched mail lands in `live-inbox-gmail/`, which is
+  gitignored so real email can never be committed.
+- **Real attachments, really filed.** Unlike a metadata-only API read, IMAP
+  delivers the attachment binaries — the actual PDFs get extracted, classified,
+  and copied into the deal folder.
+- Gmail searches use full Gmail syntax via `X-GM-RAW`; any other provider works
+  with `IMAP_HOST`/`IMAP_FOLDER` and plain `SINCE`/`TEXT` search.
+- Tunables: `GMAIL_DAYS` (14), `GMAIL_MAX` (25 newest), `DEAL_PROPERTY` (names
+  the deal folder; defaults to the search terms).
+- No credentials handy? `python3 fetch_gmail.py selftest` materializes
+  synthetic MIME messages (multipart, HTML bodies, attachments) through the
+  exact same parser and asserts the round-trip — then
+  `./run.sh live-inbox-gmail/selftest` runs the full pipeline on it.
+
 ## Live Google mode (Gmail + Drive + Calendar via MCP)
 
 The offline run proves the logic end-to-end with zero external writes. To make it
@@ -167,9 +202,10 @@ pip3 install -r requirements.txt
 - **PDF text is extracted, not OCR'd.** The sample contracts are text-based PDFs.
   A scanned/photographed document would need an OCR/vision step first (the same
   approach challenge-2 used).
-- **The demo inbox is fixtures.** `examples/` is a crafted but realistic deal so
-  the run is reproducible and touches no private mail. Point `./run.sh` at a real
-  exported inbox folder, or wire the live Gmail MCP path above, to run it for real.
+- **The demo inbox is fixtures — by choice, not necessity.** `examples/` is a
+  crafted but realistic deal so the recorded demo is reproducible and touches no
+  private mail. The real path is implemented: `./run.sh gmail` organizes an
+  actual Gmail (or any IMAP) inbox, attachments included — see "Real inbox mode".
 
 ## When to use this agent (Claude Code)
 
