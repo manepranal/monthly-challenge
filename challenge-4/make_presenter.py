@@ -25,6 +25,7 @@ from pathlib import Path
 ROOT = Path(__file__).parent
 D = ROOT / "out" / "_demo"
 SCENES = ["title", "built", "toolcalls", "problem", "terminal", "filed", "calendar", "followups", "outro"]
+OUTNAME = "deal-organizer-presenter.mp4"
 
 # lower-right bubble: 360px circle with a 56px margin on a 1920x1080 frame
 OVERLAY_XY = "1504:664"
@@ -139,7 +140,7 @@ def build(rec: Path, voice: Path, durs: list) -> Path:
         if not (D / f"{name}.png").exists():
             sys.exit(f"Missing scene still {name}.png — run make_demo.py first.")
     total = sum(durs)
-    out = ROOT / "out" / "_demo" / "deal-organizer-presenter.mp4"
+    out = D / OUTNAME
 
     cmd = ["ffmpeg", "-y"]
     for name, d in zip(SCENES, durs):
